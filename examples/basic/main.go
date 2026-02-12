@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"time"
 
@@ -11,45 +10,29 @@ import (
 func main() {
 	screen := terminux.NewScreenDefault()
 	screen.HideCursor()
+	screen.EnableMouse()
 	defer screen.Restore()
-
-	running := true
-
-	screen.SetEventListener(func(event string) {
-		if event == "q" {
-			running = false
-		}
-		fmt.Println(event)
-
-	})
 
 	go screen.ListenForEvents()
 
-	ticker := time.NewTicker(time.Second / 30)
+	ticker := screen.Ticker(time.Second / 30)
 	defer ticker.Stop()
 
-	w, h := screen.GetSize()
 	t := 0.0
 
-	for range ticker.C {
+	for {
+		select {
+		case ev := <-screen.Events():
+			if ev.Type == terminux.KeyPressed && ev.Key == "q" {
+				return
+			}
 
-		if !running {
-			break
+		case dt := <-ticker.C:
+			screen.Debug(dt, 0, 0)
+			t += 0.1
+			screen.Clear()
+			screen.DrawRect(int(math.Cos(t)*10)+50, 10, 5, 5, true, '#')
+			screen.Display()
 		}
-
-		screen.Clear()
-
-		t += 0.1
-
-		x := math.Cos(t)*20 + (float64(w / 2))
-		y := math.Sin(t)*8 + (float64(h / 2))
-
-		screen.DrawRect(int(x), int(y), 5, 5, true, 'x')
-		screen.DrawRect(int(x-5), int(y-5), 15, 15, false, '!')
-		screen.Draw(int(x), int(y), '#')
-		screen.DrawLine(20, 20, w, h, '-')
-		screen.DrawRect(0, 0, w, h, false, '!')
-
-		screen.Display()
 	}
 }

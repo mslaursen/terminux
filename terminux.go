@@ -2,13 +2,53 @@ package terminux
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"math"
 	"os"
+	"regexp"
+	"strconv"
+	"time"
 
 	"golang.org/x/term"
 )
+
+type EventType int
+
+const (
+	MousePressed EventType = iota
+	MouseReleased
+	KeyPressed
+	Error
+)
+
+type Event struct {
+	Type EventType
+	X, Y int
+	Key  string
+}
+
+func NewEventError() *Event {
+	return NewEvent(Error, -1, -1, "")
+}
+
+func NewEvent(t EventType, x, y int, k string) *Event {
+	return &Event{
+		Type: t,
+		X:    x,
+		Y:    y,
+		Key:  k,
+	}
+}
+
+var EventRegexMap = make(map[EventType]string)
+
+func InitEventRegexMap() {
+	EventRegexMap[MousePressed] = `\x1b\[<0;([0-9]+);([0-9]+)m`
+	EventRegexMap[MouseReleased] = `\x1b\[<0;([0-9]+);([0-9]+)M`
+
+}
 
 type ScreenConfig struct {
 	Width, Height int
@@ -22,7 +62,8 @@ type Screen struct {
 	oldState      *term.State
 	backBuffer    [][]rune
 	frontBuffer   [][]rune
-	eventListener func(string)
+	eventListener func(*Event)
+	events        chan *Event
 }
 
 func NewScreenDefault() *Screen {
@@ -32,7 +73,6 @@ func NewScreenDefault() *Screen {
 		log.Fatal(err)
 	}
 	return NewScreen(&ScreenConfig{Width: width, Height: height})
-
 }
 
 func NewScreen(cfg *ScreenConfig) *Screen {
@@ -47,10 +87,12 @@ func NewScreen(cfg *ScreenConfig) *Screen {
 
 	front := make([][]rune, cfg.Height)
 	back := make([][]rune, cfg.Height)
+
 	for i := range cfg.Height {
 		front[i] = make([]rune, cfg.Width)
 		back[i] = make([]rune, cfg.Width)
 	}
+	InitEventRegexMap()
 	return &Screen{
 		inputReader:   bufio.NewReader(os.Stdin),
 		outWriter:     bufio.NewWriter(os.Stdout),
@@ -59,6 +101,7 @@ func NewScreen(cfg *ScreenConfig) *Screen {
 		eventListener: nil,
 		backBuffer:    back,
 		frontBuffer:   front,
+		events:        make(chan *Event, 64),
 		Width:         cfg.Width,
 		Height:        cfg.Height,
 	}
@@ -108,6 +151,7 @@ func (s *Screen) DrawLine(x1, y1, x2, y2 int, c rune) {
 	}
 }
 
+// diff check + flush buffer to stdout
 func (s *Screen) Display() {
 	for y := range s.Height {
 		for x := range s.Width {
@@ -119,40 +163,81 @@ func (s *Screen) Display() {
 			}
 		}
 	}
-	s.frontBuffer, s.backBuffer = s.backBuffer, s.frontBuffer
 	s.outWriter.Flush()
 }
 
-func (s *Screen) SetEventListener(eventListener func(string)) {
+func (s *Screen) Debug(val any, x, y int) {
+	fmt.Fprintf(s.outWriter, "\033[%d;%dH%s", y+1, x+1, fmt.Sprintf("%v", val))
+}
+
+func (s *Screen) SetEventListener(eventListener func(*Event)) {
 	s.eventListener = eventListener
 }
 
 func (s *Screen) ListenForEvents() {
+	buf := make([]byte, 64)
+
 	for {
-		s.eventListener(s.getEvent())
+		n, _ := s.inputReader.Read(buf)
+		if buf[0] == 0x1b {
+			ev, err := s.ParseANSIEvent(buf[:n])
+			if err != nil {
+				ev = NewEventError()
+				s.Debug(err, 10, 10)
+			}
+			s.events <- ev
+			continue
+		}
+		s.events <- NewEvent(KeyPressed, -1, -1, string(buf[0]))
 	}
 }
 
-func (s *Screen) getEvent() string {
-	r, _, _ := s.inputReader.ReadRune()
-	return string(r)
+func (s *Screen) Events() <-chan *Event {
+	return s.events
 }
 
-func (s *Screen) GetSize() (int, int) {
+func (s *Screen) ParseANSIEvent(b []byte) (*Event, error) {
+	v := string(b)
+	for t, r := range EventRegexMap {
+		re := regexp.MustCompile(r)
+		matches := re.FindStringSubmatch(v)
+		if len(matches) == 3 {
+			x, _ := strconv.Atoi(matches[1])
+			y, _ := strconv.Atoi(matches[2])
+			event := &Event{
+				Type: t,
+				X:    x,
+				Y:    y,
+			}
+			return event, nil
+		}
+	}
+	return nil, errors.New("failed to parse ANSI string")
+}
+
+func (s *Screen) Size() (int, int) {
 	return s.Width, s.Height
 }
 
 func (s *Screen) Restore() {
 	s.outWriter.WriteString("\033[?25h")
 	s.outWriter.WriteString("\033[2J\033[H")
+	fmt.Print("\x1b[?1000l")
+	fmt.Print("\x1b[?1006l")
 	s.outWriter.Flush()
 	term.Restore(s.fd, s.oldState)
 }
 
 func (s *Screen) EnableMouse() {
 	fmt.Print("\x1b[?1000h")
+	fmt.Print("\x1b[?1006h")
+
 }
 
 func (s *Screen) HideCursor() {
 	fmt.Print("\033[?25l")
+}
+
+func (s *Screen) Ticker(d time.Duration) *time.Ticker {
+	return time.NewTicker(d)
 }
