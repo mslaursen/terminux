@@ -55,7 +55,7 @@ type ScreenConfig struct {
 }
 
 type Screen struct {
-	Width, Height int
+	width, height int
 	fd            int
 	inputReader   *bufio.Reader
 	outWriter     *bufio.Writer
@@ -94,29 +94,28 @@ func NewScreen(cfg *ScreenConfig) *Screen {
 	}
 	InitEventRegexMap()
 	return &Screen{
-		inputReader:   bufio.NewReader(os.Stdin),
-		outWriter:     bufio.NewWriter(os.Stdout),
-		oldState:      oldState,
-		fd:            fd,
-		eventListener: nil,
-		backBuffer:    back,
-		frontBuffer:   front,
-		events:        make(chan *Event, 64),
-		Width:         cfg.Width,
-		Height:        cfg.Height,
+		inputReader: bufio.NewReader(os.Stdin),
+		outWriter:   bufio.NewWriter(os.Stdout),
+		oldState:    oldState,
+		fd:          fd,
+		backBuffer:  back,
+		frontBuffer: front,
+		events:      make(chan *Event, 64),
+		width:       cfg.Width,
+		height:      cfg.Height,
 	}
 }
 
 func (s *Screen) Clear() {
-	for y := range s.Height {
-		for x := range s.Width {
+	for y := range s.height {
+		for x := range s.width {
 			s.backBuffer[y][x] = ' '
 		}
 	}
 }
 
 func (s *Screen) Draw(x, y int, c rune) {
-	if x < 0 || x >= s.Width || y < 0 || y >= s.Height {
+	if x < 0 || x >= s.width || y < 0 || y >= s.height {
 		return
 	}
 	s.backBuffer[y][x] = c
@@ -153,8 +152,8 @@ func (s *Screen) DrawLine(x1, y1, x2, y2 int, c rune) {
 
 // diff check + flush buffer to stdout
 func (s *Screen) Display() {
-	for y := range s.Height {
-		for x := range s.Width {
+	for y := range s.height {
+		for x := range s.width {
 			curr := s.backBuffer[y][x]
 			prev := s.frontBuffer[y][x]
 			if curr != prev {
@@ -168,10 +167,6 @@ func (s *Screen) Display() {
 
 func (s *Screen) Debug(val any, x, y int) {
 	fmt.Fprintf(s.outWriter, "\033[%d;%dH%s", y+1, x+1, fmt.Sprintf("%v", val))
-}
-
-func (s *Screen) SetEventListener(eventListener func(*Event)) {
-	s.eventListener = eventListener
 }
 
 func (s *Screen) ListenForEvents() {
@@ -216,7 +211,7 @@ func (s *Screen) ParseANSIEvent(b []byte) (*Event, error) {
 }
 
 func (s *Screen) Size() (int, int) {
-	return s.Width, s.Height
+	return s.width, s.height
 }
 
 func (s *Screen) Restore() {
