@@ -17,6 +17,19 @@ import (
 type EventType int
 
 const (
+	AnsiEsc             = "\x1b"
+	AnsiCursorMove      = "\033[%d;%dH"
+	AnsiHideCursor      = "\033[?25l"
+	AnsiShowCursor      = "\033[?25h"
+	AnsiClearScreen     = "\033[2J"
+	AnsiCursorHome      = "\033[H"
+	AnsiEnableMouse     = "\x1b[?1000h"
+	AnsiDisableMouse    = "\x1b[?1000l"
+	AnsiEnableMouseSGR  = "\x1b[?1006h"
+	AnsiDisableMouseSGR = "\x1b[?1006l"
+)
+
+const (
 	MousePressed EventType = iota
 	MouseReleased
 	KeyPressed
@@ -47,7 +60,6 @@ var EventRegexMap = make(map[EventType]string)
 func InitEventRegexMap() {
 	EventRegexMap[MousePressed] = `\x1b\[<0;([0-9]+);([0-9]+)m`
 	EventRegexMap[MouseReleased] = `\x1b\[<0;([0-9]+);([0-9]+)M`
-
 }
 
 type ScreenConfig struct {
@@ -92,7 +104,9 @@ func NewScreen(cfg *ScreenConfig) *Screen {
 		front[i] = make([]rune, cfg.Width)
 		back[i] = make([]rune, cfg.Width)
 	}
+
 	InitEventRegexMap()
+
 	return &Screen{
 		inputReader: bufio.NewReader(os.Stdin),
 		outWriter:   bufio.NewWriter(os.Stdout),
@@ -129,7 +143,6 @@ func (s *Screen) DrawRect(x, y, w, h int, fill bool, c rune) {
 					continue
 				}
 			}
-
 			s.Draw(dx+x, dy+y, c)
 		}
 	}
@@ -139,7 +152,8 @@ func (s *Screen) DrawLine(x1, y1, x2, y2 int, c rune) {
 	vx, vy := float64(x2-x1), float64(y2-y1)
 	vl := math.Hypot(vx, vy)
 	if vl == 0 {
-		s.Draw(int(vx), int(vy), c)
+		s.Draw(x1, y1, c)
+		return
 	}
 	vnx, vny := vx/vl, vy/vl
 	for step := range int(vl) {
@@ -157,7 +171,8 @@ func (s *Screen) Display() {
 			curr := s.backBuffer[y][x]
 			prev := s.frontBuffer[y][x]
 			if curr != prev {
-				fmt.Fprintf(s.outWriter, "\033[%d;%dH%c", y+1, x+1, curr)
+				fmt.Fprintf(s.outWriter, AnsiCursorMove, y+1, x+1)
+				s.outWriter.WriteRune(curr)
 				s.frontBuffer[y][x] = curr
 			}
 		}
@@ -166,7 +181,8 @@ func (s *Screen) Display() {
 }
 
 func (s *Screen) Debug(val any, x, y int) {
-	fmt.Fprintf(s.outWriter, "\033[%d;%dH%s", y+1, x+1, fmt.Sprintf("%v", val))
+	fmt.Fprintf(s.outWriter, AnsiCursorMove, y+1, x+1)
+	fmt.Fprintf(s.outWriter, "%v", val)
 }
 
 func (s *Screen) ListenForEvents() {
@@ -199,12 +215,7 @@ func (s *Screen) ParseANSIEvent(b []byte) (*Event, error) {
 		if len(matches) == 3 {
 			x, _ := strconv.Atoi(matches[1])
 			y, _ := strconv.Atoi(matches[2])
-			event := &Event{
-				Type: t,
-				X:    x,
-				Y:    y,
-			}
-			return event, nil
+			return &Event{Type: t, X: x, Y: y}, nil
 		}
 	}
 	return nil, errors.New("failed to parse ANSI string")
@@ -215,22 +226,22 @@ func (s *Screen) Size() (int, int) {
 }
 
 func (s *Screen) Restore() {
-	s.outWriter.WriteString("\033[?25h")
-	s.outWriter.WriteString("\033[2J\033[H")
-	fmt.Print("\x1b[?1000l")
-	fmt.Print("\x1b[?1006l")
+	s.outWriter.WriteString(AnsiShowCursor)
+	s.outWriter.WriteString(AnsiClearScreen)
+	s.outWriter.WriteString(AnsiCursorHome)
+	s.outWriter.WriteString(AnsiDisableMouse)
+	s.outWriter.WriteString(AnsiDisableMouseSGR)
 	s.outWriter.Flush()
 	term.Restore(s.fd, s.oldState)
 }
 
 func (s *Screen) EnableMouse() {
-	fmt.Print("\x1b[?1000h")
-	fmt.Print("\x1b[?1006h")
-
+	fmt.Print(AnsiEnableMouse)
+	fmt.Print(AnsiEnableMouseSGR)
 }
 
 func (s *Screen) HideCursor() {
-	fmt.Print("\033[?25l")
+	fmt.Print(AnsiHideCursor)
 }
 
 func (s *Screen) Ticker(d time.Duration) *time.Ticker {
