@@ -194,7 +194,7 @@ func (s *Screen) ListenForEvents() {
 			ev, err := s.ParseANSIEvent(buf[:n])
 			if err != nil {
 				ev = NewEventError()
-				s.Debug(err, 10, 10)
+				s.Debug(err, 0, 1)
 			}
 			s.events <- ev
 			continue
