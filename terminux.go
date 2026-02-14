@@ -148,20 +148,66 @@ func (s *Screen) DrawRect(x, y, w, h int, fill bool, c rune) {
 	}
 }
 
-func (s *Screen) DrawLine(x1, y1, x2, y2 int, c rune) {
-	vx, vy := float64(x2-x1), float64(y2-y1)
-	vl := math.Hypot(vx, vy)
-	if vl == 0 {
-		s.Draw(x1, y1, c)
+func (s *Screen) drawLineLow(x0, y0, x1, y1 int, c rune) {
+	dx := x1 - x0
+	dy := y1 - y0
+	yi := 1
+	if dy < 0 {
+		yi = -1
+		dy = -dy
+	}
+	d := (2 * dy) - dx
+	y := y0
+	for x := x0; x < x1; x++ {
+		s.Draw(x, y, c)
+		if d > 0 {
+			y += yi
+			d += 2 * (dy - dx)
+			continue
+		}
+		d += 2 * dy
+	}
+}
+
+func (s *Screen) drawLineHigh(x0, y0, x1, y1 int, c rune) {
+	dx := x1 - x0
+	dy := y1 - y0
+	xi := 1
+	if dx < 0 {
+		xi = -1
+		dx = -dx
+	}
+	d := (2 * dx) - dy
+	x := x0
+	for y := y0; y < y1; y++ {
+		s.Draw(x, y, c)
+		if d > 0 {
+			x += xi
+			d += 2 * (dx - dy)
+			continue
+		}
+		d += 2 * dx
+	}
+}
+
+func (s *Screen) bresenhamPlotLines(x0, y0, x1, y1 int, c rune) {
+	if math.Abs(float64(y1)-float64(y0)) < math.Abs(float64(x1)-float64(x0)) {
+		if x0 > x1 {
+			s.drawLineLow(x1, y1, x0, y0, c)
+			return
+		}
+		s.drawLineLow(x0, y0, x1, y1, c)
 		return
 	}
-	vnx, vny := vx/vl, vy/vl
-	for step := range int(vl) {
-		fs := float64(step)
-		x := x1 + int(math.Round(vnx*fs))
-		y := y1 + int(math.Round(vny*fs))
-		s.Draw(x, y, c)
+	if y0 > y1 {
+		s.drawLineHigh(x1, y1, x0, y0, c)
+		return
 	}
+	s.drawLineHigh(x0, y0, x1, y1, c)
+}
+
+func (s *Screen) DrawLine(x0, y0, x1, y1 int, c rune) {
+	s.bresenhamPlotLines(x0, y0, x1, y1, c)
 }
 
 // diff check + flush buffer to stdout

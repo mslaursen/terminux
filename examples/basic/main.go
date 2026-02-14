@@ -20,8 +20,8 @@ func main() {
 
 	t := 0.0
 
+	x0, y0 := 0, 0
 	x1, y1 := 0, 0
-	x2, y2 := 0, 0
 	for {
 		select {
 		case ev := <-screen.Events():
@@ -29,12 +29,12 @@ func main() {
 				return
 			}
 			if ev.Type == terminux.MousePressed {
-				x1 = ev.X
-				y1 = ev.Y
+				x0 = ev.X
+				y0 = ev.Y
 			}
 			if ev.Type == terminux.MouseReleased {
-				x2 = ev.X
-				y2 = ev.Y
+				x1 = ev.X
+				y1 = ev.Y
 			}
 
 		case dt := <-ticker.C:
@@ -42,7 +42,7 @@ func main() {
 			t += 0.1
 			screen.Clear()
 			screen.DrawRect(int(math.Cos(t)*10)+50, 10, 5, 5, true, '#')
-			screen.DrawLine(x1, y1, x2, y2, '@')
+			screen.DrawLine(x0, y0, x1, y1, '@')
 			screen.Display()
 		}
 	}
