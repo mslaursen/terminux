@@ -2,55 +2,55 @@ package terminux
 
 const (
 	// ansiEsc             = "\x1b"
-	ansiCursorMove      = "\033[%d;%dH"
-	ansiHideCursor      = "\033[?25l"
-	ansiShowCursor      = "\033[?25h"
-	ansiClearScreen     = "\033[2J"
-	ansiCursorHome      = "\033[H"
-	ansiEnableMouse     = "\x1b[?1000h"
-	ansiDisableMouse    = "\x1b[?1000l"
-	ansiEnableMouseSGR  = "\x1b[?1006h"
-	ansiDisableMouseSGR = "\x1b[?1006l"
+	ansiCursorMove      string = "\033[%d;%dH"
+	ansiHideCursor      string = "\033[?25l"
+	ansiShowCursor      string = "\033[?25h"
+	ansiClearScreen     string = "\033[2J"
+	ansiCursorHome      string = "\033[H"
+	ansiEnableMouse     string = "\x1b[?1000h"
+	ansiDisableMouse    string = "\x1b[?1000l"
+	ansiEnableMouseSGR  string = "\x1b[?1006h"
+	ansiDisableMouseSGR string = "\x1b[?1006l"
 )
 
 const (
-	Black   = "\u001b[30m"
-	Red     = "\u001b[31m"
-	Green   = "\u001b[32m"
-	Yellow  = "\u001b[33m"
-	Blue    = "\u001b[34m"
-	Magenta = "\u001b[35m"
-	Cyan    = "\u001b[36m"
-	White   = "\u001b[37m"
+	Black   uint32 = 30
+	Red     uint32 = 31
+	Green   uint32 = 32
+	Yellow  uint32 = 33
+	Blue    uint32 = 34
+	Magenta uint32 = 35
+	Cyan    uint32 = 36
+	White   uint32 = 37
 
-	BrightBlack   = "\u001b[90m"
-	BrightRed     = "\u001b[91m"
-	BrightGreen   = "\u001b[92m"
-	BrightYellow  = "\u001b[93m"
-	BrightBlue    = "\u001b[94m"
-	BrightMagenta = "\u001b[95m"
-	BrightCyan    = "\u001b[96m"
-	BrightWhite   = "\u001b[97m"
+	BrightBlack   uint32 = 90
+	BrightRed     uint32 = 91
+	BrightGreen   uint32 = 92
+	BrightYellow  uint32 = 93
+	BrightBlue    uint32 = 94
+	BrightMagenta uint32 = 95
+	BrightCyan    uint32 = 96
+	BrightWhite   uint32 = 97
 
-	BgBlack   = "\u001b[40m"
-	BgRed     = "\u001b[41m"
-	BgGreen   = "\u001b[42m"
-	BgYellow  = "\u001b[43m"
-	BgBlue    = "\u001b[44m"
-	BgMagenta = "\u001b[45m"
-	BgCyan    = "\u001b[46m"
-	BgWhite   = "\u001b[47m"
+	BgBlack        uint32 = 40
+	BgRed          uint32 = 41
+	BgGreen        uint32 = 42
+	BgYellow       uint32 = 43
+	BgBlue         uint32 = 44
+	BgMagentaColor uint32 = 45
+	BgCyan         uint32 = 46
+	BgWhite        uint32 = 47
 
-	BgBrightBlack   = "\u001b[100m"
-	BgBrightRed     = "\u001b[101m"
-	BgBrightGreen   = "\u001b[102m"
-	BgBrightYellow  = "\u001b[103m"
-	BgBrightBlue    = "\u001b[104m"
-	BgBrightMagenta = "\u001b[105m"
-	BgBrightCyan    = "\u001b[106m"
-	BgBrightWhite   = "\u001b[107m"
+	BgBrightBlack   uint32 = 100
+	BgBrightRed     uint32 = 101
+	BgBrightGreen   uint32 = 102
+	BgBrightYellow  uint32 = 103
+	BgBrightBlue    uint32 = 104
+	BgBrightMagenta uint32 = 105
+	BgBrightCyan    uint32 = 106
+	BgBrightWhite   uint32 = 107
 
-	Reset = "\u001b[0m"
+	Reset uint32 = 0
 )
 
 const (

@@ -6,22 +6,14 @@ import (
 	"strconv"
 )
 
-func (s *Screen) Clear() {
-	for y := range s.height {
-		for x := range s.width {
-			s.backBuffer[y][x] = newCellEmpty()
-		}
-	}
-}
-
-func (s *Screen) Draw(x, y int, c rune, col string) {
+func (s *Screen) Draw(x, y int, c rune, fg, bg uint32) {
 	if x < 0 || x >= s.width || y < 0 || y >= s.height {
 		return
 	}
-	s.backBuffer[y][x] = newCell(c, col)
+	s.currCellBuffer.setCell(x, y, newCell(c, fg, bg))
 }
 
-func (s *Screen) DrawRect(x, y, w, h int, fill bool, c rune, col string) {
+func (s *Screen) DrawRect(x, y, w, h int, fill bool, c rune, fg, bg uint32) {
 	for dx := range w {
 		for dy := range h {
 			if !fill {
@@ -29,12 +21,12 @@ func (s *Screen) DrawRect(x, y, w, h int, fill bool, c rune, col string) {
 					continue
 				}
 			}
-			s.Draw(dx+x, dy+y, c, col)
+			s.Draw(dx+x, dy+y, c, fg, bg)
 		}
 	}
 }
 
-func (s *Screen) DrawLine(x0, y0, x1, y1 int, c rune, col string) {
+func (s *Screen) DrawLine(x0, y0, x1, y1 int, c rune, fg, bg uint32) {
 	dx := intAbs(x1 - x0)
 	dy := intAbs(y1 - y0)
 
@@ -51,7 +43,7 @@ func (s *Screen) DrawLine(x0, y0, x1, y1 int, c rune, col string) {
 	err := dx - dy
 
 	for {
-		s.Draw(x0, y0, c, col)
+		s.Draw(x0, y0, c, fg, bg)
 
 		if x0 == x1 && y0 == y1 {
 			break

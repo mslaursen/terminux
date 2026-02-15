@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/term"
@@ -15,15 +16,16 @@ type ScreenConfig struct {
 }
 
 type Screen struct {
-	width, height int
-	fd            int
-	inputReader   *bufio.Reader
-	outWriter     *bufio.Writer
-	oldState      *term.State
-	backBuffer    [][]*cell
-	frontBuffer   [][]*cell
-	eventListener func(*Event)
-	events        chan *Event
+	width, height  int
+	fd             int
+	inputReader    *bufio.Reader
+	outWriter      *bufio.Writer
+	oldState       *term.State
+	currCellBuffer *cellBuffer
+	prevCellBuffer *cellBuffer
+	lineBuilder    *strings.Builder
+	eventListener  func(*Event)
+	events         chan *Event
 }
 
 func NewScreenDefault() *Screen {
@@ -48,36 +50,57 @@ func NewScreen(cfg *ScreenConfig) *Screen {
 	initEventRegexMap()
 
 	return &Screen{
-		inputReader: bufio.NewReader(os.Stdin),
-		outWriter:   bufio.NewWriter(os.Stdout),
-		oldState:    oldState,
-		fd:          fd,
-		frontBuffer: newBuffer2D[*cell](cfg.Width, cfg.Height),
-		backBuffer:  newBuffer2D[*cell](cfg.Width, cfg.Height),
-		events:      make(chan *Event, 64),
-		width:       cfg.Width,
-		height:      cfg.Height,
+		inputReader:    bufio.NewReader(os.Stdin),
+		outWriter:      bufio.NewWriter(os.Stdout),
+		oldState:       oldState,
+		fd:             fd,
+		currCellBuffer: newCellBuffer(cfg.Width, cfg.Height),
+		prevCellBuffer: newCellBuffer(cfg.Width, cfg.Height),
+		events:         make(chan *Event, 64),
+		width:          cfg.Width,
+		height:         cfg.Height,
+		lineBuilder:    &strings.Builder{},
 	}
+}
+
+func (s *Screen) Clear() {
+	s.currCellBuffer.clear()
 }
 
 // diff check + flush buffer to stdout
 func (s *Screen) Display() {
-	for y := range s.height {
-		for x := range s.width {
-			curr := s.backBuffer[y][x]
-			prev := s.frontBuffer[y][x]
-			if curr != prev {
-				fmt.Fprintf(s.outWriter, ansiCursorMove, y+1, x+1)
-				s.outWriter.WriteString(attachColor(curr.character, curr.color))
-				s.frontBuffer[y][x] = curr
+	s.lineBuilder.Reset()
+	s.lineBuilder.Grow(s.width * s.height * 16)
+
+	for y := 0; y < s.height; y++ {
+		for x := 0; x < s.width; x++ {
+			curr := s.currCellBuffer.getCell(x, y)
+			prev := s.prevCellBuffer.getCell(x, y)
+			if curr.equal(prev) {
+				continue
 			}
+			s.lineBuilder.WriteString(s.getCursorString(x, y))
+			s.lineBuilder.WriteString(
+				attachColor(curr.char, curr.fg, curr.bg),
+			)
+			s.prevCellBuffer.setCell(x, y, curr)
 		}
 	}
+
+	s.outWriter.WriteString(s.lineBuilder.String())
 	s.outWriter.Flush()
 }
 
+func (s *Screen) moveCursor(x, y int) {
+	fmt.Fprintf(s.outWriter, string(ansiCursorMove), y+1, x+1)
+}
+
+func (s *Screen) getCursorString(x, y int) string {
+	return fmt.Sprintf("\x1b[%d;%dH", y+1, x+1)
+}
+
 func (s *Screen) Debug(val any, x, y int) {
-	fmt.Fprintf(s.outWriter, ansiCursorMove, y+1, x+1)
+	s.moveCursor(x, y)
 	fmt.Fprintf(s.outWriter, "%v", val)
 }
 
@@ -86,11 +109,11 @@ func (s *Screen) Size() (int, int) {
 }
 
 func (s *Screen) Restore() {
-	s.outWriter.WriteString(ansiShowCursor)
-	s.outWriter.WriteString(ansiClearScreen)
-	s.outWriter.WriteString(ansiCursorHome)
-	s.outWriter.WriteString(ansiDisableMouse)
-	s.outWriter.WriteString(ansiDisableMouseSGR)
+	s.outWriter.WriteString(string(ansiShowCursor))
+	s.outWriter.WriteString(string(ansiClearScreen))
+	s.outWriter.WriteString(string(ansiCursorHome))
+	s.outWriter.WriteString(string(ansiDisableMouse))
+	s.outWriter.WriteString(string(ansiDisableMouseSGR))
 	s.outWriter.Flush()
 	term.Restore(s.fd, s.oldState)
 }

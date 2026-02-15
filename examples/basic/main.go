@@ -15,34 +15,28 @@ func main() {
 
 	go screen.ListenForEvents()
 
-	ticker := screen.Ticker(time.Second / 30)
+	ticker := screen.Ticker(time.Second / 60)
 	defer ticker.Stop()
 
-	t := 0.0
+	w, h := screen.Size()
 
-	x0, y0 := 0, 0
-	x1, y1 := 0, 0
+	t := 0.1
+
 	for {
 		select {
 		case ev := <-screen.Events():
 			if ev.Type == terminux.KeyPressed && ev.Key == "q" {
 				return
 			}
-			if ev.Type == terminux.MousePressed {
-				x0 = ev.X
-				y0 = ev.Y
-			}
-			if ev.Type == terminux.MouseReleased {
-				x1 = ev.X
-				y1 = ev.Y
-			}
 
-		case dt := <-ticker.C:
-			screen.Debug(dt, 0, 0)
+		case <-ticker.C:
 			t += 0.1
+			x := math.Cos(t) * 10
+			y := math.Sin(t) * 5
 			screen.Clear()
-			screen.DrawRect(int(math.Cos(t)*10)+50, 10, 5, 5, true, terminux.PixelLowerHalf, terminux.BrightGreen)
-			screen.DrawLine(x0, y0, x1, y1, '@', terminux.Reset)
+			screen.Draw(int(x)+w/2, int(y)+h/2, terminux.PixelFull, terminux.Red, terminux.Red)
+			screen.DrawRect(0, 0, 50, h, true, terminux.PixelFull, terminux.Red, terminux.Red)
+			screen.DrawLine(0, 0, w, h, terminux.PixelDark, terminux.Blue, terminux.Blue)
 			screen.Display()
 		}
 	}
