@@ -41,8 +41,8 @@ func main() {
 			screen.Debug(dt, 0, 0)
 			t += 0.1
 			screen.Clear()
-			screen.DrawRect(int(math.Cos(t)*10)+50, 10, 5, 5, true, '#')
-			screen.DrawLine(x0, y0, x1, y1, '@')
+			screen.DrawRect(int(math.Cos(t)*10)+50, 10, 5, 5, true, terminux.PixelLowerHalf, terminux.BrightGreen)
+			screen.DrawLine(x0, y0, x1, y1, '@', terminux.Reset)
 			screen.Display()
 		}
 	}
