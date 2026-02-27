@@ -46,13 +46,17 @@ func main() {
 
 	angle := 0.0
 
+	c := screen.ResizeChan()
+
 	for {
 		select {
 		case ev := <-screen.Events():
 			if ev.Type == terminux.KeyPressed && ev.Key == "q" {
 				return
 			}
-
+			screen.Debug(ev.Type, 0, 2)
+		case <-c:
+			w, h = screen.Resize()
 		case <-ticker.C:
 			angle += 0.03
 

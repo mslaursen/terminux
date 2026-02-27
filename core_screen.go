@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/term"
@@ -105,7 +107,18 @@ func (s *Screen) Debug(val any, x, y int) {
 }
 
 func (s *Screen) Size() (int, int) {
-	return s.width, s.height
+	w, h, _ := term.GetSize(s.fd)
+	return w, h
+}
+
+func (s *Screen) Resize() (int, int) {
+	s.Clear()
+	w, h := s.Size()
+	s.width = w
+	s.height = h
+	s.currCellBuffer = newCellBuffer(w, h)
+	s.prevCellBuffer = newCellBuffer(w, h)
+	return w, h
 }
 
 func (s *Screen) Restore() {
@@ -125,6 +138,12 @@ func (s *Screen) EnableMouse() {
 
 func (s *Screen) HideCursor() {
 	fmt.Print(ansiHideCursor)
+}
+
+func (s *Screen) ResizeChan() chan os.Signal {
+	c := make(chan os.Signal)
+	signal.Notify(c, syscall.SIGWINCH)
+	return c
 }
 
 func (s *Screen) Ticker(d time.Duration) *time.Ticker {
